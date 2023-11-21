@@ -1,0 +1,119 @@
+-- Calculate monthly revenue from orders
+
+select
+ DATE_FORMAT(OrderDate, '%Y-%m') as Month,
+
+SUM(UnitPrice * Quantity) as MonthlyRevenue
+
+from Orders
+
+join orderdetails 
+     
+     on Orders.OrderID = orderdetails.OrderID
+
+group by Month
+
+order by Month;
+
+-- Churn Rate
+
+with info_order as (
+
+select CustomerID, OrderID, OrderDate,
+
+date_format(OrderDate, '%Y%m') as month_year,
+
+lag(date_format(OrderDate, '%Y%m'), 1) over (partition by CustomerID order by OrderDate ) previous_order_month
+
+from orders
+
+),
+
+info_month as(
+
+select month_year, 
+count(distinct CustomerID) total_customer,
+
+count(distinct case when period_diff(month_year, previous_order_month) = 1 then CustomerID end ) as retain_customers,
+
+lag(count(distinct CustomerID), 1) over(order by month_year) pre_month_total_customer
+
+from info_order
+
+group by 1
+
+)
+
+
+select month_year, retain_customers*100/pre_month_total_customer as retention_rate, 100- (retain_customers*100/pre_month_total_customer) as churn_rate
+
+from info_month
+
+
+;
+
+-- Gross Merchandise Value
+
+select ProductName as Merchandise, 
+count(Quantity) as Units_Sold, 
+
+round(sum(od.UnitPrice*od.Quantity), 2) as Gross_Merchandise_Value_GMV,
+
+date_format(OrderDate, '%Y-%m') month
+
+from products p
+
+join orderdetails od
+     
+using(ProductID)
+
+join orders
+	
+using(OrderID)
+
+group by Merchandise, month
+
+order by  month;
+
+-- Q7. What are the products frequently bought together in a single order
+
+
+SELECT
+    
+p1.productname AS product1,
+    
+p2.productname AS product2,
+    
+COUNT(*) AS frequency
+   
+
+FROM
+    orderdetails o1
+
+JOIN
+    orderdetails o2
+
+ON
+    o1.orderid = o2.orderid
+    
+AND o1.productid < o2.productid 
+
+JOIN
+    products p1
+
+ON
+    o1.productid = p1.productid
+
+JOIN
+    products p2
+
+ON
+    o2.productid = p2.productid
+
+GROUP BY
+    product1, product2
+
+HAVING
+    frequency >= 3 
+
+
